@@ -12,7 +12,7 @@ export default function Hero() {
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-20">
       {/* Background Bubbles */}
-      <div className="absolute inset-0 -z-10 pointer-events-none overflow-hidden">
+      <div className="absolute inset-0 -z-10 pointer-events-none">
         <motion.div
           style={{ y: y1 }}
           className="absolute top-20 left-10 w-72 h-72 bg-brand-blue/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"
