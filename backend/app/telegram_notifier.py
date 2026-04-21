@@ -296,7 +296,7 @@ async def on_new_price_value(message: Message) -> None:
 
 @dispatcher.callback_query(F.data.startswith("done:"))
 async def on_done(callback: CallbackQuery) -> None:
-    if callback.data is None:
+    if callback.data is None or callback.message is None:
         return
     lead_id = callback.data.split(":", 1)[1]
     lead = mark_lead_done(lead_id)
@@ -304,14 +304,31 @@ async def on_done(callback: CallbackQuery) -> None:
         await callback.answer("Заказ не найден", show_alert=True)
         return
 
-    if callback.message:
+    # Keep the active orders view open and refresh it in-place.
+    page = 1
+    text = callback.message.text or ""
+    marker = "Страница "
+    if marker in text:
         try:
-            await callback.message.delete()
+            page = int(text.split(marker, 1)[1].split("/", 1)[0])
         except Exception:  # noqa: BLE001
-            await callback.message.edit_text(
-                f"✅ Заказ {lead.id} завершен",
-            )
-    await callback.answer("Готово")
+            page = 1
+
+    leads = list_active_leads()
+    if not leads:
+        await callback.message.edit_text("Активных заказов нет.")
+        await callback.answer("✅ Заявка завершена")
+        return
+
+    total_pages = (len(leads) + PAGE_SIZE - 1) // PAGE_SIZE
+    safe_page = max(1, min(page, total_pages))
+    start = (safe_page - 1) * PAGE_SIZE
+    chunk = leads[start : start + PAGE_SIZE]
+    await callback.message.edit_text(
+        _active_orders_text(chunk, safe_page, total_pages),
+        reply_markup=_orders_page_keyboard(safe_page, total_pages),
+    )
+    await callback.answer("✅ Заявка завершена")
 
 
 @dispatcher.callback_query(F.data.startswith("restore:"))
