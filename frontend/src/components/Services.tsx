@@ -144,7 +144,7 @@ export default function Services() {
                 
                 <Link
                   href="#contact"
-                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium transition-all bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium transition-all bg-brand-blue text-white hover:bg-sky-500 shadow-md shadow-brand-blue/20 hover:-translate-y-0.5"
                 >
                   Оставить заявку
                   <ArrowRight size={18} />
