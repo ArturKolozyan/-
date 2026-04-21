@@ -28,7 +28,6 @@ def _build_message(lead: LeadRecord) -> str:
     comment = lead.comment.strip() or "Без комментария"
     return (
         "📦 НОВЫЙ ЗАКАЗ: ClearSpace\n\n"
-        f"🆔 ID: {lead.id}\n"
         f"👤 Клиент: {lead.name}\n"
         f"📞 Связь: {lead.phone}\n"
         f"💬 Пожелания: {comment}\n\n"
@@ -45,24 +44,55 @@ def _done_keyboard(lead_id: str) -> InlineKeyboardMarkup:
 def _menu_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Заказы"), KeyboardButton(text="Архив заказов")],
-            [KeyboardButton(text="Настройки")],
+            [KeyboardButton(text="📥 Активные заказы"), KeyboardButton(text="🗂 Архив заказов")],
+            [KeyboardButton(text="⚙️ Настройки цен")],
         ],
         resize_keyboard=True,
     )
 
 
-def _lead_line(lead: LeadRecord) -> str:
-    created = lead.created_at.astimezone().strftime("%d.%m %H:%M")
-    return f"• {created} | {lead.name} | {lead.phone} | id: {lead.id[:8]}"
+def _active_orders_text(leads: list[LeadRecord], page: int, total_pages: int) -> str:
+    lines = [f"📥 Активные заказы • Страница {page}/{total_pages}", ""]
+    for index, lead in enumerate(leads, start=1):
+        created = lead.created_at.astimezone().strftime("%d.%m.%Y %H:%M")
+        comment = lead.comment.strip() or "Без комментария"
+        lines.append(
+            f"{index}. {lead.name}\n"
+            f"   📞 {lead.phone}\n"
+            f"   💬 {comment}\n"
+            f"   🕒 {created}"
+        )
+    return "\n\n".join(lines)
+
+
+def _build_archive_message(lead: LeadRecord) -> str:
+    created = lead.created_at.astimezone().strftime("%d.%m.%Y %H:%M")
+    done = lead.done_at.astimezone().strftime("%d.%m.%Y %H:%M") if lead.done_at else "—"
+    comment = lead.comment.strip() or "Без комментария"
+    return (
+        "🗂 ЗАВЕРШЕННЫЙ ЗАКАЗ: ClearSpace\n\n"
+        f"👤 Клиент: {lead.name}\n"
+        f"📞 Связь: {lead.phone}\n"
+        f"💬 Пожелания: {comment}\n"
+        f"🕒 Создан: {created}\n"
+        f"✅ Завершен: {done}"
+    )
 
 
 def _orders_page_keyboard(page: int, total_pages: int) -> InlineKeyboardMarkup:
     keyboard = InlineKeyboardBuilder()
+    leads = list_active_leads()
+    start = (page - 1) * PAGE_SIZE
+    chunk = leads[start : start + PAGE_SIZE]
+    for idx, lead in enumerate(chunk, start=1):
+        keyboard.button(text=f"✅ Завершить #{idx}", callback_data=f"done:{lead.id}")
+
     if page > 1:
         keyboard.button(text="⬅️ Назад", callback_data=f"orders:page:{page - 1}")
     if page < total_pages:
         keyboard.button(text="Вперед ➡️", callback_data=f"orders:page:{page + 1}")
+
+    keyboard.adjust(1)
     return keyboard.as_markup()
 
 
@@ -72,6 +102,7 @@ def _archive_page_keyboard(page: int, total_pages: int) -> InlineKeyboardMarkup:
         keyboard.button(text="⬅️ Назад", callback_data=f"archive:page:{page - 1}")
     if page < total_pages:
         keyboard.button(text="Вперед ➡️", callback_data=f"archive:page:{page + 1}")
+    keyboard.adjust(2)
     return keyboard.as_markup()
 
 
@@ -84,9 +115,25 @@ async def _send_orders_page(message: Message, page: int = 1) -> None:
     safe_page = max(1, min(page, total_pages))
     start = (safe_page - 1) * PAGE_SIZE
     chunk = leads[start : start + PAGE_SIZE]
-    lines = ["📋 Незавершенные заказы:\n"] + [_lead_line(lead) for lead in chunk]
-    text = "\n".join(lines) + f"\n\nСтраница {safe_page}/{total_pages}"
-    await message.answer(text, reply_markup=_orders_page_keyboard(safe_page, total_pages))
+    text = _active_orders_text(chunk, safe_page, total_pages)
+    await message.answer(
+        text,
+        reply_markup=_orders_page_keyboard(safe_page, total_pages),
+    )
+
+
+def _archive_page_text(leads: list[LeadRecord], page: int, total_pages: int) -> str:
+    lines = [f"🗂 Архив заказов • Страница {page}/{total_pages}", ""]
+    for index, lead in enumerate(leads, start=1):
+        created = lead.created_at.astimezone().strftime("%d.%m.%Y %H:%M")
+        done = lead.done_at.astimezone().strftime("%d.%m.%Y %H:%M") if lead.done_at else "—"
+        lines.append(
+            f"{index}. {lead.name}\n"
+            f"   📞 {lead.phone}\n"
+            f"   🕒 Создан: {created}\n"
+            f"   ✅ Завершен: {done}"
+        )
+    return "\n\n".join(lines)
 
 
 async def _send_archive_page(message: Message, page: int = 1) -> None:
@@ -98,9 +145,10 @@ async def _send_archive_page(message: Message, page: int = 1) -> None:
     safe_page = max(1, min(page, total_pages))
     start = (safe_page - 1) * PAGE_SIZE
     chunk = leads[start : start + PAGE_SIZE]
-    lines = ["🗂 Архив заказов:\n"] + [_lead_line(lead) for lead in chunk]
-    text = "\n".join(lines) + f"\n\nСтраница {safe_page}/{total_pages}"
-    await message.answer(text, reply_markup=_archive_page_keyboard(safe_page, total_pages))
+    await message.answer(
+        _archive_page_text(chunk, safe_page, total_pages),
+        reply_markup=_archive_page_keyboard(safe_page, total_pages) if total_pages > 1 else None,
+    )
 
 
 def _settings_keyboard() -> InlineKeyboardMarkup:
@@ -139,22 +187,25 @@ async def notify_owner(lead: LeadRecord) -> None:
 
 @dispatcher.message(Command("start"))
 async def on_start(message: Message) -> None:
-    await message.answer("Панель заказов ClearSpace активна.", reply_markup=_menu_keyboard())
+    await message.answer(
+        "Добро пожаловать в панель ClearSpace.\nВыберите действие в меню ниже.",
+        reply_markup=_menu_keyboard(),
+    )
 
 
-@dispatcher.message(F.text == "Заказы")
+@dispatcher.message(F.text == "📥 Активные заказы")
 async def on_orders_menu(message: Message) -> None:
     await _send_orders_page(message, page=1)
 
 
-@dispatcher.message(F.text == "Архив заказов")
+@dispatcher.message(F.text == "🗂 Архив заказов")
 async def on_archive_menu(message: Message) -> None:
     await _send_archive_page(message, page=1)
 
 
-@dispatcher.message(F.text == "Настройки")
+@dispatcher.message(F.text == "⚙️ Настройки цен")
 async def on_settings_menu(message: Message) -> None:
-    await message.answer("Выберите категорию для редактирования цен:", reply_markup=_settings_keyboard())
+    await message.answer("Выберите категорию, чтобы изменить цены:", reply_markup=_settings_keyboard())
 
 
 @dispatcher.callback_query(F.data.startswith("orders:page:"))
@@ -171,9 +222,11 @@ async def on_orders_page(callback: CallbackQuery) -> None:
     safe_page = max(1, min(page, total_pages))
     start = (safe_page - 1) * PAGE_SIZE
     chunk = leads[start : start + PAGE_SIZE]
-    lines = ["📋 Незавершенные заказы:\n"] + [_lead_line(lead) for lead in chunk]
-    text = "\n".join(lines) + f"\n\nСтраница {safe_page}/{total_pages}"
-    await callback.message.edit_text(text, reply_markup=_orders_page_keyboard(safe_page, total_pages))
+    text = _active_orders_text(chunk, safe_page, total_pages)
+    await callback.message.edit_text(
+        text,
+        reply_markup=_orders_page_keyboard(safe_page, total_pages),
+    )
     await callback.answer()
 
 
@@ -191,9 +244,10 @@ async def on_archive_page(callback: CallbackQuery) -> None:
     safe_page = max(1, min(page, total_pages))
     start = (safe_page - 1) * PAGE_SIZE
     chunk = leads[start : start + PAGE_SIZE]
-    lines = ["🗂 Архив заказов:\n"] + [_lead_line(lead) for lead in chunk]
-    text = "\n".join(lines) + f"\n\nСтраница {safe_page}/{total_pages}"
-    await callback.message.edit_text(text, reply_markup=_archive_page_keyboard(safe_page, total_pages))
+    await callback.message.edit_text(
+        _archive_page_text(chunk, safe_page, total_pages),
+        reply_markup=_archive_page_keyboard(safe_page, total_pages) if total_pages > 1 else None,
+    )
     await callback.answer()
 
 
@@ -215,9 +269,7 @@ async def on_settings_item(callback: CallbackQuery) -> None:
         return
     _, _, category_key, item_title = callback.data.split(":", 3)
     pending_price_updates[callback.from_user.id] = (category_key, item_title)
-    await callback.message.answer(
-        f"Введите новую цену для '{item_title}' только числом, например: 3200",
-    )
+    await callback.message.answer(f"Введите новую цену для '{item_title}' (только число, например 3200):")
     await callback.answer()
 
 

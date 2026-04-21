@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-brand-blue: #38BDF8;
+  --color-brand-mint: #10B981;
+  --color-brand-lavender: #6366F1;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 text-slate-600 font-sans antialiased min-h-screen selection:bg-brand-blue/20 selection:text-brand-blue;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading text-slate-900 font-bold tracking-tight;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/40 backdrop-blur-xl border border-white/50 shadow-lg shadow-blue-900/5;
+  }
+  
+  .glass-card {
+    @apply bg-white/30 backdrop-blur-md border border-white/40 shadow-lg shadow-blue-900/5 rounded-2xl transition-all duration-300 hover:shadow-xl hover:shadow-blue-900/10 hover:bg-white/50;
+  }
+  
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
