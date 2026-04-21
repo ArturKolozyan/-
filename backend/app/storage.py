@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -41,6 +41,12 @@ def _write_leads_raw(data: list[dict]) -> None:
         json.dumps(data, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+
+
+def _parse_dt(value: str | None) -> datetime:
+    if not value:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
 def append_lead(payload: LeadCreate) -> LeadRecord:
@@ -86,3 +92,60 @@ def mark_lead_done(lead_id: str) -> LeadRecord | None:
         return None
     _write_leads_raw(data)
     return updated
+
+
+def list_active_leads() -> list[LeadRecord]:
+    data = _read_leads_raw()
+    active = [LeadRecord.model_validate(item) for item in data if item.get("status") != "done"]
+    active.sort(key=lambda lead: lead.created_at, reverse=True)
+    return active
+
+
+def list_archived_leads() -> list[LeadRecord]:
+    data = _read_leads_raw()
+    archived = [LeadRecord.model_validate(item) for item in data if item.get("status") == "done"]
+    archived.sort(
+        key=lambda lead: lead.done_at or lead.created_at,
+        reverse=True,
+    )
+    return archived
+
+
+def cleanup_old_archived_leads() -> int:
+    data = _read_leads_raw()
+    threshold = datetime.now(timezone.utc) - timedelta(days=365)
+    original_count = len(data)
+    kept = []
+    for item in data:
+        if item.get("status") != "done":
+            kept.append(item)
+            continue
+        done_at = _parse_dt(item.get("done_at"))
+        if done_at >= threshold:
+            kept.append(item)
+    removed = original_count - len(kept)
+    if removed > 0:
+        _write_leads_raw(kept)
+    return removed
+
+
+def update_service_price(category_key: str, item_title: str, new_price: int) -> bool:
+    _ensure_data_files()
+    data = json.loads(PRICES_PATH.read_text(encoding="utf-8"))
+    updated = False
+    for category in data:
+        if category.get("key") != category_key:
+            continue
+        for item in category.get("items", []):
+            if item.get("title") == item_title:
+                item["price_from"] = new_price
+                updated = True
+                break
+        break
+    if not updated:
+        return False
+    PRICES_PATH.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return True

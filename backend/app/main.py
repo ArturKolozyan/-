@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .schemas import LeadCreate, LeadRecord, PriceCategory
 from .storage import append_lead, read_prices
-from .telegram_notifier import close_bot, notify_owner, run_polling
+from .telegram_notifier import cleanup_archived_daily, close_bot, notify_owner, run_polling
 
 app = FastAPI(title="ClearSpace API", version="1.0.0")
 
@@ -26,6 +26,7 @@ async def healthcheck() -> dict[str, str]:
 @app.on_event("startup")
 async def startup_event() -> None:
     app.state.polling_task = asyncio.create_task(run_polling())
+    app.state.cleanup_task = asyncio.create_task(cleanup_archived_daily())
 
 
 @app.on_event("shutdown")
@@ -33,6 +34,9 @@ async def shutdown_event() -> None:
     polling_task = getattr(app.state, "polling_task", None)
     if polling_task:
         polling_task.cancel()
+    cleanup_task = getattr(app.state, "cleanup_task", None)
+    if cleanup_task:
+        cleanup_task.cancel()
     await close_bot()
 
 
