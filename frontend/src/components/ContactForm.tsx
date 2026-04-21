@@ -40,7 +40,7 @@ export default function ContactForm() {
     e.preventDefault();
     
     // Basic validation
-    if (!formData.name.trim() || formData.phone.trim() === "+7") {
+    if (!formData.name.trim() || formData.phone.trim() === "+7 ") {
       setStatus("error");
       setErrorMessage("Пожалуйста, заполните обязательные поля (Имя и Телефон).");
       return;

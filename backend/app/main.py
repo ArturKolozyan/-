@@ -3,6 +3,7 @@ import asyncio
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from .config import settings
 from .schemas import LeadCreate, LeadRecord, PriceCategory
 from .storage import append_lead, read_prices
 from .telegram_notifier import cleanup_archived_daily, close_bot, notify_owner, run_polling
@@ -11,7 +12,7 @@ app = FastAPI(title="ClearSpace API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
