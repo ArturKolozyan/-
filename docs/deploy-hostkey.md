@@ -29,11 +29,20 @@ nslookup www.clearspacenvrsk.ru
 ssh root@IP_СЕРВЕРА
 ```
 
-Обновление и базовые пакеты:
+Быстрый вариант (скриптом из проекта):
+
+```bash
+cd /opt
+git clone <URL_ВАШЕГО_РЕПО> cleanspace
+cd /opt/cleanspace
+bash deploy/systemd/bootstrap-server.sh
+```
+
+Ручной вариант (если нужно):
 
 ```bash
 apt update && apt upgrade -y
-apt install -y git curl nginx certbot python3-certbot-nginx python3-venv python3-pip
+apt install -y git curl nginx certbot python3-certbot-nginx python3-venv python3-pip nodejs npm
 ```
 
 ## 4) Развернуть проект в `/opt/cleanspace`
@@ -48,7 +57,7 @@ cd /opt/cleanspace
 Создать `.env`:
 
 ```bash
-cp .env.example .env
+cp .env.production.example .env
 nano .env
 ```
 
@@ -65,56 +74,27 @@ CORS_ORIGINS=https://clearspacenvrsk.ru,https://www.clearspacenvrsk.ru
 
 ## 5) Установить зависимости и собрать frontend
 
-```bash
-cd /opt/cleanspace
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r backend/requirements.txt
-```
+Быстрый вариант:
 
 ```bash
-cd /opt/cleanspace/frontend
-npm ci
-npm run build
+cd /opt/cleanspace
+bash deploy/systemd/install-and-build.sh
 ```
 
 ## 6) Настроить systemd сервисы
 
 ```bash
-cp /opt/cleanspace/deploy/systemd/cleanspace-backend.service /etc/systemd/system/
-cp /opt/cleanspace/deploy/systemd/cleanspace-frontend.service /etc/systemd/system/
-chown -R www-data:www-data /opt/cleanspace
-```
-
-```bash
-systemctl daemon-reload
-systemctl enable --now cleanspace-backend
-systemctl enable --now cleanspace-frontend
-systemctl status cleanspace-backend --no-pager
-systemctl status cleanspace-frontend --no-pager
+cd /opt/cleanspace
+sudo bash deploy/systemd/enable-services.sh
 ```
 
 ## 7) Настроить Nginx
 
-Открыть конфиг и заменить домен:
-
-```bash
-cp /opt/cleanspace/deploy/nginx/cleanspace.conf /etc/nginx/sites-available/cleanspace
-nano /etc/nginx/sites-available/cleanspace
-```
-
-В файле замените:
-
-- домен уже прописан (`clearspacenvrsk.ru`, `www.clearspacenvrsk.ru`), при необходимости отредактируйте
-
 Активировать сайт:
 
 ```bash
-ln -sf /etc/nginx/sites-available/cleanspace /etc/nginx/sites-enabled/cleanspace
-rm -f /etc/nginx/sites-enabled/default
-nginx -t
-systemctl reload nginx
+cd /opt/cleanspace
+sudo bash deploy/nginx/setup-site.sh
 ```
 
 ## 8) Выпустить SSL
@@ -132,10 +112,8 @@ systemctl status certbot.timer --no-pager
 ## 9) Проверки после деплоя
 
 ```bash
-curl -I https://clearspacenvrsk.ru
-curl https://clearspacenvrsk.ru/api/health
-journalctl -u cleanspace-backend -n 100 --no-pager
-journalctl -u cleanspace-frontend -n 100 --no-pager
+cd /opt/cleanspace
+bash deploy/systemd/health-check.sh https://clearspacenvrsk.ru
 ```
 
 Ожидается для `/api/health`:
@@ -148,14 +126,5 @@ journalctl -u cleanspace-frontend -n 100 --no-pager
 
 ```bash
 cd /opt/cleanspace
-git pull
-source .venv/bin/activate
-pip install -r backend/requirements.txt
-cd /opt/cleanspace/frontend
-npm ci
-npm run build
-systemctl restart cleanspace-backend
-systemctl restart cleanspace-frontend
-systemctl status cleanspace-backend --no-pager
-systemctl status cleanspace-frontend --no-pager
+bash deploy/systemd/update-app.sh
 ```
