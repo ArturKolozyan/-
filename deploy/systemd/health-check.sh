@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DOMAIN="${1:-https://clearspacenvrsk.ru}"
+DOMAIN="${1:-https://example.com}"
 
 echo "=== systemd status ==="
-systemctl status cleanspace-backend --no-pager | rg "Active|Loaded|Main PID" -N
-systemctl status cleanspace-frontend --no-pager | rg "Active|Loaded|Main PID" -N
+systemctl status cleanspace-backend --no-pager | grep -E "Active|Loaded|Main PID" || true
+systemctl status cleanspace-frontend --no-pager | grep -E "Active|Loaded|Main PID" || true
 
 echo
 echo "=== http checks ==="
-curl -fsSI "${DOMAIN}" | rg "HTTP/|server:|content-type:" -i -N
+curl -fsSI "${DOMAIN}" | grep -Ei "HTTP/|server:|content-type:" || true
 curl -fsS "${DOMAIN}/api/health"
 echo
 

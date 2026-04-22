@@ -11,14 +11,14 @@
 
 У регистратора домена добавьте записи:
 
-- `A` -> `clearspacenvrsk.ru` -> `IP_СЕРВЕРА`
-- `A` -> `www.clearspacenvrsk.ru` -> `IP_СЕРВЕРА`
+- `A` -> `your-domain.com` -> `IP_СЕРВЕРА`
+- `A` -> `www.your-domain.com` -> `IP_СЕРВЕРА`
 
 Проверка (локально):
 
 ```bash
-nslookup clearspacenvrsk.ru
-nslookup www.clearspacenvrsk.ru
+nslookup your-domain.com
+nslookup www.your-domain.com
 ```
 
 ## 3) Первичная настройка сервера
@@ -42,7 +42,10 @@ bash deploy/systemd/bootstrap-server.sh
 
 ```bash
 apt update && apt upgrade -y
-apt install -y git curl nginx certbot python3-certbot-nginx python3-venv python3-pip nodejs npm
+apt install -y ca-certificates curl gnupg git nginx certbot python3-certbot-nginx python3-venv python3-pip
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
+apt update && apt install -y nodejs
 ```
 
 ## 4) Развернуть проект в `/opt/cleanspace`
@@ -68,8 +71,9 @@ BOT_TOKEN=...
 OWNER_CHAT_ID=...
 FASTAPI_HOST=127.0.0.1
 FASTAPI_PORT=8000
-NEXT_PUBLIC_API_URL=https://clearspacenvrsk.ru
-CORS_ORIGINS=https://clearspacenvrsk.ru,https://www.clearspacenvrsk.ru
+NEXT_PUBLIC_API_URL=
+CORS_ORIGINS=https://your-domain.com,https://www.your-domain.com
+NEXT_PUBLIC_SITE_URL=https://your-domain.com
 ```
 
 ## 5) Установить зависимости и собрать frontend
@@ -94,13 +98,13 @@ sudo bash deploy/systemd/enable-services.sh
 
 ```bash
 cd /opt/cleanspace
-sudo bash deploy/nginx/setup-site.sh
+DOMAIN=your-domain.com WWW_DOMAIN=www.your-domain.com sudo bash deploy/nginx/setup-site.sh
 ```
 
 ## 8) Выпустить SSL
 
 ```bash
-certbot --nginx -d clearspacenvrsk.ru -d www.clearspacenvrsk.ru
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com
 ```
 
 Проверка автообновления сертификата:
@@ -113,7 +117,7 @@ systemctl status certbot.timer --no-pager
 
 ```bash
 cd /opt/cleanspace
-bash deploy/systemd/health-check.sh https://clearspacenvrsk.ru
+bash deploy/systemd/health-check.sh https://your-domain.com
 ```
 
 Ожидается для `/api/health`:
