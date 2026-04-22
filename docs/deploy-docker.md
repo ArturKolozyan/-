@@ -81,11 +81,25 @@ curl -fsS http://127.0.0.1/api/health
 curl -fsS http://127.0.0.1
 ```
 
-## 7) SSL (Let's Encrypt)
+## 7) HTTPS (автоматически через Caddy)
 
-Самый простой вариант для контейнерного nginx: поставить Cloudflare proxy и использовать SSL в Cloudflare.
+В этом проекте HTTPS выдает `caddy` автоматически (Let's Encrypt) для:
 
-Если нужен именно Let's Encrypt на сервере с контейнерным nginx, удобнее перейти на reverse proxy с автосертификатами (например Caddy/Traefik).
+- `clearspacenvrsk.ru`
+- `www.clearspacenvrsk.ru`
+
+Условия:
+
+- DNS обоих доменов указывает на этот сервер
+- в firewall открыты `80/tcp` и `443/tcp`
+
+Проверка:
+
+```bash
+sudo ss -tulpn | grep -E ':80|:443'
+curl -I https://clearspacenvrsk.ru
+curl -I https://www.clearspacenvrsk.ru
+```
 
 ## 8) Обновление проекта
 
