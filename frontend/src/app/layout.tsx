@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Manrope } from "next/font/google";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
